@@ -58,7 +58,7 @@ func (c *modelCache) get(ctx context.Context) ([]models.Model, error) {
 func registerSearchModels(server *mcp.Server) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "search_models",
-		Description: "Search and filter the Poe.com model catalog by name, owner, or modality",
+		Description: "Search and filter the Poe.com model catalog by name, owner, or modality. Returns all models if no filters are specified.",
 	}, handleSearchModels)
 }
 
