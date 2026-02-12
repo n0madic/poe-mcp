@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"strings"
 	"testing"
@@ -50,6 +51,28 @@ func TestRunQuery_MissingArgs(t *testing.T) {
 				t.Errorf("Expected usage error, got: %v", err)
 			}
 		})
+	}
+}
+
+func TestUploadCLIFiles_InvalidPath(t *testing.T) {
+	ctx := context.Background()
+	_, err := uploadCLIFiles(ctx, []string{"/no/such/file.txt"}, nil, "fake-key")
+	if err == nil {
+		t.Fatal("expected error for non-existent file")
+	}
+	if !strings.Contains(err.Error(), "open") {
+		t.Errorf("expected open error, got: %v", err)
+	}
+}
+
+func TestUploadCLIFiles_EmptySlices(t *testing.T) {
+	ctx := context.Background()
+	attachments, err := uploadCLIFiles(ctx, nil, nil, "fake-key")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(attachments) != 0 {
+		t.Errorf("expected 0 attachments, got %d", len(attachments))
 	}
 }
 

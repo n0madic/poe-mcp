@@ -5,12 +5,22 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/n0madic/go-poe/client"
 	"github.com/n0madic/go-poe/models"
 	"github.com/n0madic/go-poe/types"
 )
+
+// stringSlice implements flag.Value for repeatable string flags.
+type stringSlice []string
+
+func (s *stringSlice) String() string { return strings.Join(*s, ", ") }
+func (s *stringSlice) Set(val string) error {
+	*s = append(*s, val)
+	return nil
+}
 
 // runCLI handles CLI mode subcommands (search, query).
 func runCLI(args []string) error {
@@ -62,10 +72,14 @@ COMMANDS:
 
         Flags:
           -t, --temperature float   Sampling temperature 0.0-2.0 (default: 0.7)
+          -f, --file path           Attach a local file (repeatable)
+          -u, --url url             Attach a file by URL (repeatable)
 
         Examples:
           POE_API_KEY=<key> poe-mcp query GPT-4o "What is Go?"
           POE_API_KEY=<key> poe-mcp query -t 0.9 Claude-4.5-Sonnet "Explain monads"
+          POE_API_KEY=<key> poe-mcp query -f photo.jpg GPT-4o "Describe this image"
+          POE_API_KEY=<key> poe-mcp query --url https://example.com/doc.pdf GPT-4o "Summarize"
 
 ENVIRONMENT VARIABLES:
     POE_API_KEY    Required for MCP server mode and 'query' command
@@ -137,13 +151,23 @@ Query a Poe bot and stream the response (requires POE_API_KEY).
 
 FLAGS:
   -t, --temperature float   Sampling temperature 0.0-2.0 (default: 0.7)
+  -f, --file path           Attach a local file (repeatable)
+  --url url            Attach a file by URL (repeatable)
 
 EXAMPLES:
   POE_API_KEY=<key> poe-mcp query GPT-4o "What is Go?"
-  POE_API_KEY=<key> poe-mcp query -t 0.9 Claude-4.5-Sonnet "Explain monads"`)
+  POE_API_KEY=<key> poe-mcp query -t 0.9 Claude-4.5-Sonnet "Explain monads"
+  POE_API_KEY=<key> poe-mcp query -f photo.jpg GPT-4o "Describe this image"
+  POE_API_KEY=<key> poe-mcp query --url https://example.com/doc.pdf GPT-4o "Summarize"`)
 	}
 	temperature := fs.Float64("t", 0.7, "Sampling temperature (0.0-2.0)")
 	fs.Float64("temperature", 0.7, "Sampling temperature (0.0-2.0)") // Alias
+
+	var filePaths, fileURLs stringSlice
+	fs.Var(&filePaths, "f", "Attach a local file (repeatable)")
+	fs.Var(&filePaths, "file", "Attach a local file (repeatable)")
+	fs.Var(&fileURLs, "u", "Attach a file by URL (repeatable)")
+	fs.Var(&fileURLs, "url", "Attach a file by URL (repeatable)")
 
 	if err := fs.Parse(args); err != nil {
 		if err == flag.ErrHelp {
@@ -155,7 +179,7 @@ EXAMPLES:
 	// Two positional args required: <bot> <message>
 	positional := fs.Args()
 	if len(positional) < 2 {
-		return fmt.Errorf("usage: query [-t temperature] <bot> <message>")
+		return fmt.Errorf("usage: query [-t temperature] [-f file] [--url url] <bot> <message>")
 	}
 
 	bot := positional[0]
@@ -167,13 +191,24 @@ EXAMPLES:
 		return fmt.Errorf("POE_API_KEY environment variable is required for query command")
 	}
 
+	ctx := context.Background()
+
+	// Upload attached files
+	var attachments []types.Attachment
+	if len(filePaths) > 0 || len(fileURLs) > 0 {
+		uploaded, err := uploadCLIFiles(ctx, filePaths, fileURLs, apiKey)
+		if err != nil {
+			return fmt.Errorf("file upload: %w", err)
+		}
+		attachments = uploaded
+	}
+
 	// Construct the message
 	messages := []types.ProtocolMessage{
-		{Role: "user", Content: message},
+		{Role: "user", Content: message, Attachments: attachments},
 	}
 
 	// Stream the response
-	ctx := context.Background()
 	opts := &client.StreamRequestOptions{
 		APIKey: apiKey,
 	}
@@ -210,4 +245,45 @@ EXAMPLES:
 
 	fmt.Println() // Newline at the end
 	return nil
+}
+
+// uploadCLIFiles uploads local files and URL-based files, returning attachments.
+func uploadCLIFiles(ctx context.Context, paths, urls []string, key string) ([]types.Attachment, error) {
+	var attachments []types.Attachment
+
+	for _, p := range paths {
+		f, err := os.Open(p)
+		if err != nil {
+			return nil, fmt.Errorf("open %q: %w", p, err)
+		}
+		att, err := client.UploadFile(ctx, &client.UploadFileOptions{
+			File:     f,
+			FileName: filepath.Base(p),
+			APIKey:   key,
+		})
+		f.Close()
+		if err != nil {
+			return nil, fmt.Errorf("upload %q: %w", p, err)
+		}
+		attachments = append(attachments, *att)
+	}
+
+	for _, u := range urls {
+		// Derive filename from the last path segment of the URL
+		name := filepath.Base(u)
+		if name == "" || name == "." || name == "/" {
+			name = "file"
+		}
+		att, err := client.UploadFile(ctx, &client.UploadFileOptions{
+			FileURL:  u,
+			FileName: name,
+			APIKey:   key,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("upload URL %q: %w", u, err)
+		}
+		attachments = append(attachments, *att)
+	}
+
+	return attachments, nil
 }
