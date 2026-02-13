@@ -20,13 +20,21 @@ Then configure your MCP client (see [Configuration](#configuration) below).
 
 ### `query_bot`
 
-Send a message to any Poe bot and get the full response.
+Send a message to any Poe bot and get the full response. Supports file attachments.
 
 | Parameter     | Type   | Required | Description                                    |
 |---------------|--------|----------|------------------------------------------------|
 | `bot`         | string | yes      | Bot name on Poe (e.g. GPT-4o, Claude-4.5-Sonnet) |
 | `message`     | string | yes      | User message to send to the bot                |
+| `files`       | array  | no       | Files to attach (see below)                    |
 | `temperature` | float  | no       | Sampling temperature (0.0–2.0)                 |
+
+**File attachment format** (each file object):
+- `name` (string, required): Filename (e.g. "photo.jpg", "document.pdf")
+- `url` (string, optional): URL to fetch the file from
+- `content` (string, optional): Base64-encoded file content
+
+Note: Each file must have either `url` or `content`, but not both.
 
 ### `search_models`
 
@@ -66,7 +74,23 @@ poe-mcp query GPT-4o "What is Go?"
 # With temperature setting
 poe-mcp query -t 0.7 Claude-4.5-Sonnet "Explain monads"
 poe-mcp query --temperature 0.9 GPT-5.2-Pro "Write a poem"
+
+# Attach local files
+poe-mcp query -f photo.jpg GPT-4o "Describe this image"
+poe-mcp query -f doc.pdf -f chart.png GPT-4o "Summarize these files"
+
+# Attach files by URL
+poe-mcp query -u https://example.com/image.jpg GPT-4o "What's in this image?"
+poe-mcp query --url https://example.com/doc.pdf Claude-4.5-Sonnet "Analyze this"
+
+# Mix local files and URLs
+poe-mcp query -f local.pdf -u https://example.com/remote.pdf GPT-4o "Compare these"
 ```
+
+**Query flags**:
+- `-t`, `--temperature <float>` — Sampling temperature (0.0-2.0, default: 0.7)
+- `-f`, `--file <path>` — Attach a local file (repeatable)
+- `-u`, `--url <url>` — Attach a file by URL (repeatable)
 
 ## Installation
 
