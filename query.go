@@ -1,29 +1,23 @@
 package main
 
 import (
-	"bytes"
 	"context"
-	"encoding/base64"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/n0madic/go-poe/client"
 	"github.com/n0madic/go-poe/types"
 )
 
-// FileInput describes a file to upload and attach to the message.
-type FileInput struct {
-	URL     string `json:"url,omitempty" jsonschema:"URL of the file to upload (mutually exclusive with content)"`
-	Content string `json:"content,omitempty" jsonschema:"Base64-encoded file content (mutually exclusive with url)"`
-	Name    string `json:"name" jsonschema:"Filename (e.g. document.pdf, image.png)"`
-}
-
 // QueryBotArgs defines the input schema for the query_bot tool.
 type QueryBotArgs struct {
-	Bot         string      `json:"bot" jsonschema:"Bot name on Poe.com (e.g. GPT-4o, Claude-4.5-Sonnet, Gemini-2.5-Pro)"`
-	Message     string      `json:"message" jsonschema:"User message to send to the bot"`
-	Files       []FileInput `json:"files,omitempty" jsonschema:"Files to attach to the message"`
-	Temperature *float64    `json:"temperature,omitempty" jsonschema:"Sampling temperature (0.0-2.0)"`
+	Bot         string   `json:"bot" jsonschema:"Bot name on Poe.com (e.g. GPT-4o, Claude-4.5-Sonnet, Gemini-2.5-Pro)"`
+	Message     string   `json:"message" jsonschema:"User message to send to the bot"`
+	Files       []string `json:"files,omitempty" jsonschema:"Files to attach (local paths or URLs)"`
+	Temperature *float64 `json:"temperature,omitempty" jsonschema:"Sampling temperature (0.0-2.0)"`
 }
 
 func registerQueryBot(server *mcp.Server) {
@@ -33,39 +27,46 @@ func registerQueryBot(server *mcp.Server) {
 	}, handleQueryBot)
 }
 
-// uploadFiles uploads each FileInput and returns the resulting attachments.
-func uploadFiles(ctx context.Context, files []FileInput, key string) ([]types.Attachment, error) {
+// uploadFiles uploads each file path or URL and returns the resulting attachments.
+// Strings starting with http:// or https:// are treated as URLs; everything else
+// is treated as a local file path.
+func uploadFiles(ctx context.Context, files []string, key string) ([]types.Attachment, error) {
 	var attachments []types.Attachment
-	for _, f := range files {
-		if f.Name == "" {
-			return nil, fmt.Errorf("file name is required")
-		}
-		if f.URL == "" && f.Content == "" {
-			return nil, fmt.Errorf("file %q: either url or content is required", f.Name)
-		}
-
-		opts := &client.UploadFileOptions{
-			FileName: f.Name,
-			APIKey:   key,
-		}
-
-		if f.URL != "" {
-			opts.FileURL = f.URL
-		} else {
-			data, err := base64.StdEncoding.DecodeString(f.Content)
-			if err != nil {
-				return nil, fmt.Errorf("file %q: invalid base64 content: %w", f.Name, err)
-			}
-			opts.File = bytes.NewReader(data)
-		}
-
-		att, err := client.UploadFile(ctx, opts)
+	for _, path := range files {
+		att, err := uploadSingleFile(ctx, path, key)
 		if err != nil {
-			return nil, fmt.Errorf("file %q: upload failed: %w", f.Name, err)
+			return nil, err
 		}
 		attachments = append(attachments, *att)
 	}
 	return attachments, nil
+}
+
+// uploadSingleFile uploads a single file (local path or URL) and returns the attachment.
+func uploadSingleFile(ctx context.Context, path, key string) (*types.Attachment, error) {
+	if strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") {
+		name := filepath.Base(path)
+		if name == "" || name == "." || name == "/" {
+			name = "file"
+		}
+		return client.UploadFile(ctx, &client.UploadFileOptions{
+			FileURL:  path,
+			FileName: name,
+			APIKey:   key,
+		})
+	}
+
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("file %q: %w", path, err)
+	}
+	defer f.Close()
+
+	return client.UploadFile(ctx, &client.UploadFileOptions{
+		File:     f,
+		FileName: filepath.Base(path),
+		APIKey:   key,
+	})
 }
 
 func handleQueryBot(ctx context.Context, req *mcp.CallToolRequest, args QueryBotArgs) (*mcp.CallToolResult, any, error) {
