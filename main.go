@@ -21,9 +21,6 @@ func main() {
 
 	// Otherwise, run as MCP server (current behavior).
 	apiKey = os.Getenv("POE_API_KEY")
-	if apiKey == "" {
-		log.Fatal("POE_API_KEY environment variable is required")
-	}
 
 	server := mcp.NewServer(
 		&mcp.Implementation{

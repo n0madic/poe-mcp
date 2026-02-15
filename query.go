@@ -70,6 +70,15 @@ func uploadSingleFile(ctx context.Context, path, key string) (*types.Attachment,
 }
 
 func handleQueryBot(ctx context.Context, req *mcp.CallToolRequest, args QueryBotArgs) (*mcp.CallToolResult, any, error) {
+	if apiKey == "" {
+		return &mcp.CallToolResult{
+			Content: []mcp.Content{
+				&mcp.TextContent{Text: "POE_API_KEY environment variable is required"},
+			},
+			IsError: true,
+		}, nil, nil
+	}
+
 	var attachments []types.Attachment
 	if len(args.Files) > 0 {
 		var err error
