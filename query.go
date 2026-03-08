@@ -116,7 +116,7 @@ func handleQueryBot(ctx context.Context, req *mcp.CallToolRequest, args QueryBot
 		}, nil, nil
 	}
 
-	if response.Text == "" {
+	if response.Text == "" && len(response.Attachments) == 0 {
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{
 				&mcp.TextContent{Text: fmt.Sprintf("Bot %q returned an empty response", args.Bot)},
@@ -125,9 +125,27 @@ func handleQueryBot(ctx context.Context, req *mcp.CallToolRequest, args QueryBot
 		}, nil, nil
 	}
 
+	text := response.Text
+	if len(response.Attachments) > 0 {
+		var links strings.Builder
+		links.WriteString("\n\nAttachments:\n")
+		for _, att := range response.Attachments {
+			name := att.Name
+			if name == "" {
+				name = att.URL
+			}
+			fmt.Fprintf(&links, "- [%s](%s)", name, att.URL)
+			if att.ContentType != "" {
+				fmt.Fprintf(&links, " (%s)", att.ContentType)
+			}
+			links.WriteString("\n")
+		}
+		text += links.String()
+	}
+
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{
-			&mcp.TextContent{Text: response.Text},
+			&mcp.TextContent{Text: text},
 		},
 	}, nil, nil
 }
