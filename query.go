@@ -116,7 +116,7 @@ func handleQueryBot(ctx context.Context, req *mcp.CallToolRequest, args QueryBot
 		}, nil, nil
 	}
 
-	if response == "" {
+	if response.Text == "" {
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{
 				&mcp.TextContent{Text: fmt.Sprintf("Bot %q returned an empty response", args.Bot)},
@@ -127,7 +127,7 @@ func handleQueryBot(ctx context.Context, req *mcp.CallToolRequest, args QueryBot
 
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{
-			&mcp.TextContent{Text: response},
+			&mcp.TextContent{Text: response.Text},
 		},
 	}, nil, nil
 }

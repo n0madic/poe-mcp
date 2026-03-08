@@ -4,7 +4,7 @@ go 1.23.0
 
 require (
 	github.com/modelcontextprotocol/go-sdk v1.3.0
-	github.com/n0madic/go-poe v0.0.0-20260211154534-70f02c46a11e
+	github.com/n0madic/go-poe v0.0.0-20260308064535-d0900fb3c998
 )
 
 require (

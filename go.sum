@@ -8,6 +8,8 @@ github.com/modelcontextprotocol/go-sdk v1.3.0 h1:gMfZkv3DzQF5q/DcQePo5rahEY+sguy
 github.com/modelcontextprotocol/go-sdk v1.3.0/go.mod h1:AnQ//Qc6+4nIyyrB4cxBU7UW9VibK4iOZBeyP/rF1IE=
 github.com/n0madic/go-poe v0.0.0-20260211154534-70f02c46a11e h1:yyhj6B+pAZ6vyTmkZYZYoTLBm070TnnqvAmKR16OC0w=
 github.com/n0madic/go-poe v0.0.0-20260211154534-70f02c46a11e/go.mod h1:uO/YY64CxFMGFx9QGGDts0jZGiSuCN6FmjmzFL4HU+w=
+github.com/n0madic/go-poe v0.0.0-20260308064535-d0900fb3c998 h1:6tpCrz+jBZ475JILdPDJgpX8HTPUycro9viMQSEM0mo=
+github.com/n0madic/go-poe v0.0.0-20260308064535-d0900fb3c998/go.mod h1:uO/YY64CxFMGFx9QGGDts0jZGiSuCN6FmjmzFL4HU+w=
 github.com/yosida95/uritemplate/v3 v3.0.2 h1:Ed3Oyj9yrmi9087+NczuL5BwkIc4wvTb5zIM+UJPGz4=
 github.com/yosida95/uritemplate/v3 v3.0.2/go.mod h1:ILOh0sOhIJR3+L/8afwt/kE++YT040gmv5BQTMR2HP4=
 golang.org/x/oauth2 v0.30.0 h1:dnDm7JmhM45NNpd8FDDeLhK6FwqbOf4MLCM9zb1BOHI=
